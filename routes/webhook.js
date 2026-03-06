@@ -10,7 +10,6 @@ const router = express.Router()
 initDB()
 
 router.get("/", (req, res) => {
-
   const token = req.query["hub.verify_token"]
   const challenge = req.query["hub.challenge"]
 
@@ -23,24 +22,16 @@ router.get("/", (req, res) => {
 })
 
 router.post("/", async (req, res) => {
-
   try {
-
     const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]
-
     if (!message) return res.sendStatus(200)
 
     const from = message.from
-
-    const to =
-      req.body.entry?.[0]?.changes?.[0]?.value?.metadata?.display_phone_number
-
+    const to = req.body.entry?.[0]?.changes?.[0]?.value?.metadata?.display_phone_number
     const config = await getChatbotConfigByWhatsApp(to)
-
     if (!config) return res.sendStatus(200)
 
     const result = await processMessage(message, config)
-
     if (!result) return res.sendStatus(200)
 
     if (result.type === "menu") {
@@ -52,13 +43,10 @@ router.post("/", async (req, res) => {
     }
 
     res.sendStatus(200)
-
   } catch (error) {
-
     console.error("ERROR:", error)
-
     res.sendStatus(500)
-
   }
 })
 
+module.exports = router
