@@ -1,52 +1,84 @@
 const { askGPT } = require("./gptService")
 const { formatMessage } = require("../utils/messageFormatter")
+const { searchProducts } = require("../repositories/productRepository")
 
 const humanSupport = new Set()
 
 async function processMessage(message, config) {
+
   const from = message.from
-  const text = message.text?.body?.toLowerCase()
-  const listReply = message.interactive?.list_reply?.id
+  const text = message.text?.body?.toLowerCase()?.trim()
 
   if (humanSupport.has(from)) return null
 
-  let response = ""
+  try {
 
-  if (text === "hola") {
-    return { type: "menu" }
-  }
+    if (!text) {
 
-  if (listReply === "menu") {
-    response = formatMessage(`
-🍔 *MENÚ SNAP SERVE*
+      return {
+        type: "text",
+        message: "🙂 Puedes escribirme el nombre de un producto para ayudarte."
+      }
 
-1️⃣ Hamburguesa clásica — ₡4500
-2️⃣ Pizza personal — ₡5000
-3️⃣ Papas fritas — ₡2000
+    }
 
-✍️ Escribe el número del producto para ordenar.
+    if (text.includes("humano") || text.includes("agente")) {
+
+      humanSupport.add(from)
+
+      return {
+        type: "text",
+        message: "👨‍💼 Perfecto, un agente humano continuará la conversación."
+      }
+
+    }
+
+    const products = await searchProducts(
+      config.establecimiento_id,
+      text
+    )
+
+    if (products.length > 0) {
+
+      const suggestions = products
+        .map(p => `• ${p.nombre_producto} — ₡${p.precio}`)
+        .join("\n")
+
+      return {
+        type: "text",
+        message: formatMessage(`
+Encontré estas opciones:
+
+${suggestions}
+
+¿Te gustaría ordenar alguno? 🙂
 `)
-  }
-  else if (listReply === "pedido") {
-    response = formatMessage(`
-🛒 *¿Qué deseas ordenar?*
+      }
 
-1️⃣ Hamburguesa
-2️⃣ Pizza
-3️⃣ Papas
+    }
 
-✍️ Escribe el número del producto.
-`)
-  }
-  else if (listReply === "humano") {
-    humanSupport.add(from)
-    response = formatMessage("👨‍💼 Un agente humano continuará la conversación.")
-  }
-  else {
-    response = formatMessage(await askGPT(config.establecimiento_id, from, text))
+    const aiReply = await askGPT(
+      config.establecimiento_id,
+      from,
+      text
+    )
+
+    return {
+      type: "text",
+      message: formatMessage(aiReply)
+    }
+
+  } catch (error) {
+
+    console.error("❌ chatbotService error:", error)
+
+    return {
+      type: "text",
+      message: "⚠️ Ocurrió un problema procesando tu mensaje."
+    }
+
   }
 
-  return { type: "text", message: response }
 }
 
 module.exports = { processMessage }
