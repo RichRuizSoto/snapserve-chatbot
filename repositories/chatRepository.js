@@ -3,10 +3,18 @@ const { getDB } = require("../config/db")
 async function getChatbotConfigByWhatsApp(number) {
   const db = getDB()
 
-  const [rows] = await db.query(
-    "SELECT * FROM chatbot_info WHERE whatsapp_number=? AND chatbot_estado='activo' LIMIT 1",
-    [number]
-  )
+  const [rows] = await db.query(`
+    SELECT 
+      ci.*,
+      e.nombre as restaurante_nombre,
+      e.slug as restaurante_slug
+    FROM chatbot_info ci
+    JOIN establecimientos e
+      ON e.id = ci.establecimiento_id
+    WHERE ci.whatsapp_number = ?
+    AND ci.chatbot_estado = 'activo'
+    LIMIT 1
+  `, [number])
 
   return rows[0]
 }

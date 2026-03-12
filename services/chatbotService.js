@@ -1,76 +1,134 @@
-const { askGPT } = require("./gptService")
-const { formatMessage } = require("../utils/messageFormatter")
-const { searchProducts } = require("../repositories/productRepository")
+const { askGPT } = require("./gptService");
+const { formatMessage } = require("../utils/messageFormatter");
+const { searchProducts } = require("../repositories/productRepository");
+const { getConversation } = require("../repositories/chatRepository");
+const { detectIntent } = require("./intentService");
 
-const humanSupport = new Set()
+const humanSupport = new Set();
 
 async function processMessage(message, config) {
+  const from = message.from;
+  const text = message.text?.body?.toLowerCase()?.trim();
 
-  const from = message.from
-  const text = message.text?.body?.toLowerCase()?.trim()
-
-  console.log("======================================")
-  console.log("📩 MENSAJE RECIBIDO")
-  console.log("👤 Usuario:", from)
-  console.log("🏪 Restaurante:", config.establecimiento_id)
-  console.log("💬 Texto:", text)
+  console.log("======================================");
+  console.log("📩 MENSAJE RECIBIDO");
+  console.log("👤 Usuario:", from);
+  console.log("🏪 Restaurante:", config.establecimiento_id);
+  console.log("💬 Texto:", text);
 
   if (humanSupport.has(from)) {
-    console.log("⚠️ Conversación en modo humano, bot no responde.")
-    console.log("======================================")
-    return null
+    console.log("⚠️ Conversación en modo humano, bot no responde.");
+    console.log("======================================");
+    return null;
   }
 
   try {
-
-    // 📭 Mensaje sin texto
     if (!text) {
+      return {
+        type: "text",
+        message: "🙂 Puedes escribirme el nombre de un producto para ayudarte.",
+      };
+    }
 
-      console.log("📭 Mensaje sin texto (imagen, ubicación, etc)")
+    const history = await getConversation(config.establecimiento_id, from);
+    const isFirstMessage = history.length === 0;
+
+    if (isFirstMessage) {
+      const welcome = `
+👋 ¡Hola! Bienvenido a *${config.restaurante_nombre}*
+
+Estoy aquí para ayudarte con:
+
+🍔 Ver el menú
+🛒 Hacer un pedido
+📍 Ubicación
+⏰ Horarios
+
+Puedes escribirme algo como:
+
+• "Quiero ver el menú"
+• "Recomiéndame algo"
+• "¿Dónde están ubicados?"
+
+¿En qué puedo ayudarte hoy? 🙂
+`;
 
       return {
         type: "text",
-        message: "🙂 Puedes escribirme el nombre de un producto para ayudarte."
-      }
-
+        message: formatMessage(welcome),
+      };
     }
 
-    // 👨‍💼 Solicitud de humano
-    if (text.includes("humano") || text.includes("agente")) {
+    const intent = detectIntent(text);
 
-      console.log("👨‍💼 Usuario solicitó atención humana")
+    console.log("🧠 Intent detectado:", intent);
 
-      humanSupport.add(from)
+    if (intent === "humano") {
+      humanSupport.add(from);
 
       return {
         type: "text",
-        message: "👨‍💼 Perfecto, un agente humano continuará la conversación."
-      }
-
+        message: "👨‍💼 Perfecto, un agente humano continuará la conversación.",
+      };
     }
 
-    // 🔎 Buscar productos similares
-    console.log("🔎 Buscando productos en la base de datos...")
+    if (intent === "saludo") {
+      return {
+        type: "text",
+        message: formatMessage(`
+👋 Hola, estás hablando con *${config.restaurante_nombre}*
 
-    const products = await searchProducts(
-      config.establecimiento_id,
-      text
-    )
+¿En qué puedo ayudarte hoy?
 
-    console.log("📦 Productos encontrados:", products.length)
+🍔 Ver menú
+📍 Ubicación
+⏰ Horarios
+🛒 Hacer pedido
+`),
+      };
+    }
+
+    if (intent === "horario") {
+      return {
+        type: "text",
+        message: formatMessage(`
+⏰ Nuestro horario es:
+
+${config.horario_apertura || "No disponible"} - ${config.horario_cierre || "No disponible"}
+
+¡Te esperamos! 🙂
+`),
+      };
+    }
+
+    if (intent === "ubicacion") {
+      return {
+        type: "text",
+        message: formatMessage(`
+📍 Estamos ubicados en:
+
+${config.direccion || "Dirección no disponible"}
+${config.ciudad || ""}
+
+¡Será un gusto atenderte! 🙂
+`),
+      };
+    }
+
+    if (intent === "menu") {
+      return {
+        type: "pdf",
+      };
+    }
+
+    const products = await searchProducts(config.establecimiento_id, text);
+
+    console.log("📦 Productos encontrados:", products.length);
 
     if (products.length > 0) {
-
-      console.log(
-        "📦 Coincidencias:",
-        products.map(p => p.nombre_producto).join(", ")
-      )
-
       const suggestions = products
-        .map(p => `• ${p.nombre_producto} — ₡${p.precio}`)
-        .join("\n")
-
-      console.log("✅ Respondiendo con productos encontrados")
+        .map((p) => `• ${p.nombre_producto} — ₡${p.precio}`)
+        .join("\n");
 
       return {
         type: "text",
@@ -80,46 +138,34 @@ Encontré estas opciones:
 ${suggestions}
 
 ¿Te gustaría ordenar alguno? 🙂
-`)
-      }
-
+`),
+      };
     }
 
-    // 🧠 Usar GPT
-    console.log("🧠 No se encontraron productos, consultando GPT...")
+    const aiReply = await askGPT(config, from, text);
 
-    const aiReply = await askGPT(
-      config.establecimiento_id,
-      from,
-      text
-    )
+    console.log("🤖 Respuesta generada por GPT:");
+    console.log(aiReply);
 
-    console.log("🤖 Respuesta generada por GPT:")
-    console.log(aiReply)
-
-    console.log("======================================")
+    console.log("======================================");
 
     return {
       type: "text",
-      message: formatMessage(aiReply)
-    }
-
+      message: formatMessage(aiReply),
+    };
   } catch (error) {
-
-    console.error("======================================")
-    console.error("❌ ERROR EN CHATBOT SERVICE")
-    console.error("👤 Usuario:", from)
-    console.error("💬 Texto:", text)
-    console.error("📡 Error:", error.message)
-    console.error("======================================")
+    console.error("======================================");
+    console.error("❌ ERROR EN CHATBOT SERVICE");
+    console.error("👤 Usuario:", from);
+    console.error("💬 Texto:", text);
+    console.error("📡 Error:", error.message);
+    console.error("======================================");
 
     return {
       type: "text",
-      message: "⚠️ Ocurrió un problema procesando tu mensaje."
-    }
-
+      message: "⚠️ Ocurrió un problema procesando tu mensaje.",
+    };
   }
-
 }
 
-module.exports = { processMessage }
+module.exports = { processMessage };

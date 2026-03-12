@@ -36,7 +36,22 @@ async function searchProducts(estId, text) {
   return rows
 }
 
+async function getMenu(estId) {
+
+  const db = getDB()
+
+  const [rows] = await db.query(`
+    SELECT nombre_producto, precio
+    FROM productos
+    WHERE id_restaurante = ?
+    AND disponible = 1
+  `, [estId])
+
+  return rows
+}
+
 module.exports = {
   getTopProducts,
-  searchProducts
+  searchProducts,
+  getMenu
 }

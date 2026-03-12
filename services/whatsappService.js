@@ -1,5 +1,27 @@
 const axios = require("axios")
 
+async function sendDocument(to, token, phoneId, url, filename) {
+
+  await axios.post(
+    `https://graph.facebook.com/v22.0/${phoneId}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to,
+      type: "document",
+      document: {
+        link: url,
+        filename
+      }
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      }
+    }
+  )
+}
+
 async function sendText(to, message, token, phoneId) {
 
   try {
@@ -117,4 +139,4 @@ async function sendMenu(to, token, phoneId) {
 
 }
 
-module.exports = { sendText, sendMenu }
+module.exports = { sendText, sendMenu, sendDocument }
