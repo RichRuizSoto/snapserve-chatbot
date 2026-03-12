@@ -1,7 +1,6 @@
 const { askGPT } = require("./gptService");
 const { formatMessage } = require("../utils/messageFormatter");
 const { searchProducts } = require("../repositories/productRepository");
-const { getConversation } = require("../repositories/chatRepository");
 const { detectIntent } = require("./intentService");
 const {
   addItem,
@@ -33,39 +32,19 @@ async function processMessage(message, config) {
     if (!text) {
       return {
         type: "text",
-        message: "🙂 Puedes escribirme el nombre de un producto para ayudarte.",
+        message: "🙂 Puedes escribirme lo que deseas pedir o preguntar.",
       };
     }
-
-    const history = await getConversation(config.establecimiento_id, from);
-    const isFirstMessage = history.length === 0;
-
-if (isFirstMessage) {
-  const welcome = `
-👋 ¡Hola! Bienvenido a *${config.restaurante_nombre}*.
-
-¡Qué bueno tenerte por aquí! 😊  
-Si te gustaría ver el menú o hacer un pedido, con gusto te ayudo.
-
-Solo dime qué te gustaría.
-`;
-
-  return {
-    type: "text",
-    message: formatMessage(welcome),
-  };
-}
-
-    const intent = detectIntent(text);
 
     if (
       text.includes("confirmar") ||
       text.includes("listo") ||
-      text.includes("eso es")
+      text.includes("eso es") ||
+      text.includes("hacer pedido")
     ) {
       const order = getOrder(from);
 
-      if (order.items.length === 0) {
+      if (!order || order.items.length === 0) {
         return {
           type: "text",
           message: "Tu carrito está vacío 🙂",
@@ -113,14 +92,15 @@ Solo dime qué te gustaría.
       };
     }
 
+    const intent = detectIntent(text);
+
     console.log("🧠 Intent detectado:", intent);
 
     if (intent === "humano") {
       humanSupport.add(from);
-
       return {
         type: "text",
-        message: "👨‍💼 Perfecto, un agente humano continuará la conversación.",
+        message: "👨‍💼 Un agente humano continuará la conversación.",
       };
     }
 
@@ -130,7 +110,7 @@ Solo dime qué te gustaría.
         message: formatMessage(`
 👋 Hola, estás hablando con *${config.restaurante_nombre}*
 
-¿En qué puedo ayudarte hoy?
+¿En qué puedo ayudarte?
 
 🍔 Ver menú
 📍 Ubicación
@@ -146,9 +126,11 @@ Solo dime qué te gustaría.
         message: formatMessage(`
 ⏰ Nuestro horario es:
 
-${config.horario_apertura || "No disponible"} - ${config.horario_cierre || "No disponible"}
+${config.horario_apertura || "No disponible"} - ${
+          config.horario_cierre || "No disponible"
+        }
 
-¡Te esperamos! 🙂
+🙂 Te esperamos
 `),
       };
     }
@@ -162,7 +144,7 @@ ${config.horario_apertura || "No disponible"} - ${config.horario_cierre || "No d
 ${config.direccion || "Dirección no disponible"}
 ${config.ciudad || ""}
 
-¡Será un gusto atenderte! 🙂
+🙂 Será un gusto atenderte
 `),
       };
     }
@@ -200,7 +182,6 @@ Escribe *confirmar* para enviar el pedido o agrega otro producto 🙂
 
     console.log("🤖 Respuesta generada por GPT:");
     console.log(aiReply);
-
     console.log("======================================");
 
     return {
