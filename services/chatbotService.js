@@ -3,6 +3,8 @@ const { formatMessage } = require("../utils/messageFormatter");
 const { searchProducts } = require("../repositories/productRepository");
 const { getConversation } = require("../repositories/chatRepository");
 const { detectIntent } = require("./intentService");
+const { addItem, getOrder, clearOrder, calculateTotal } = require("./orderService");
+const { sendOrder } = require("./backendOrderService");
 
 const humanSupport = new Set();
 
@@ -60,6 +62,57 @@ Puedes escribirme algo como:
     }
 
     const intent = detectIntent(text);
+
+    if (text.includes("confirmar") || text.includes("listo") || text.includes("eso es")) {
+      const order = getOrder(from);
+
+      if (order.items.length === 0) {
+        return {
+          type: "text",
+          message: "Tu carrito está vacío 🙂",
+        };
+      }
+
+      const total = calculateTotal(order);
+
+      const payload = {
+        id_restaurante: config.establecimiento_id,
+        tipo_servicio: "pickup",
+        total,
+        productos: order.items.map((p) => ({
+          id_producto: p.id_producto,
+          cantidad: 1,
+          precio: p.precio,
+          tipo_producto: "producto",
+          extras: [],
+        })),
+        nombre: "Cliente WhatsApp",
+        telefono: from,
+        metodo_pago: "efectivo",
+        estado: "solicitado",
+        imprimir_factura: false,
+      };
+
+      const result = await sendOrder(payload);
+
+      clearOrder(from);
+
+      if (result) {
+        return {
+          type: "text",
+          message: `✅ Pedido confirmado
+
+🧾 Orden #${result.numero_orden}
+
+🍽️ Ya lo estamos preparando`,
+        };
+      }
+
+      return {
+        type: "text",
+        message: "⚠️ No pude crear el pedido.",
+      };
+    }
 
     console.log("🧠 Intent detectado:", intent);
 
@@ -126,18 +179,20 @@ ${config.ciudad || ""}
     console.log("📦 Productos encontrados:", products.length);
 
     if (products.length > 0) {
-      const suggestions = products
-        .map((p) => `• ${p.nombre_producto} — ₡${p.precio}`)
-        .join("\n");
+      const product = products[0];
+
+      addItem(from, product);
+
+      const order = getOrder(from);
 
       return {
         type: "text",
         message: formatMessage(`
-Encontré estas opciones:
+Agregué *${product.nombre_producto}* a tu pedido.
 
-${suggestions}
+Tu carrito ahora tiene ${order.items.length} producto(s).
 
-¿Te gustaría ordenar alguno? 🙂
+Escribe *confirmar* para enviar el pedido o agrega otro producto 🙂
 `),
       };
     }

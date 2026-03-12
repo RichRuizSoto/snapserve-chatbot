@@ -23,6 +23,12 @@ function addItem(user, product) {
 
 }
 
+function calculateTotal(order) {
+
+  return order.items.reduce((acc, item) => acc + item.precio, 0)
+
+}
+
 function clearOrder(user) {
   orders.delete(user)
 }
@@ -30,5 +36,6 @@ function clearOrder(user) {
 module.exports = {
   getOrder,
   addItem,
+  calculateTotal,
   clearOrder
 }

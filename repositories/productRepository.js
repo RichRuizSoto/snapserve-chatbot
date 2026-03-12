@@ -6,6 +6,7 @@ async function getTopProducts(estId) {
 
   const [rows] = await db.query(`
     SELECT 
+      id as id_producto,
       nombre_producto,
       precio
     FROM productos
@@ -24,6 +25,7 @@ async function searchProducts(estId, text) {
 
   const [rows] = await db.query(`
     SELECT 
+      id as id_producto,
       nombre_producto,
       precio
     FROM productos
@@ -41,7 +43,10 @@ async function getMenu(estId) {
   const db = getDB()
 
   const [rows] = await db.query(`
-    SELECT nombre_producto, precio
+    SELECT 
+      id as id_producto,
+      nombre_producto,
+      precio
     FROM productos
     WHERE id_restaurante = ?
     AND disponible = 1
