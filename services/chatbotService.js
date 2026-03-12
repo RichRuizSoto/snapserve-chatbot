@@ -3,7 +3,12 @@ const { formatMessage } = require("../utils/messageFormatter");
 const { searchProducts } = require("../repositories/productRepository");
 const { getConversation } = require("../repositories/chatRepository");
 const { detectIntent } = require("./intentService");
-const { addItem, getOrder, clearOrder, calculateTotal } = require("./orderService");
+const {
+  addItem,
+  getOrder,
+  clearOrder,
+  calculateTotal,
+} = require("./orderService");
 const { sendOrder } = require("./backendOrderService");
 
 const humanSupport = new Set();
@@ -37,33 +42,27 @@ async function processMessage(message, config) {
 
     if (isFirstMessage) {
       const welcome = `
-👋 ¡Hola! Bienvenido a *${config.restaurante_nombre}*
+        👋 ¡Hola! Bienvenido a *${config.restaurante_nombre}*.
 
-Estoy aquí para ayudarte con:
+        ¡Qué bueno tenerte por aquí! 😊  
+        Si te gustaría ver el menú o hacer un pedido, con gusto te ayudo.
 
-🍔 Ver el menú
-🛒 Hacer un pedido
-📍 Ubicación
-⏰ Horarios
-
-Puedes escribirme algo como:
-
-• "Quiero ver el menú"
-• "Recomiéndame algo"
-• "¿Dónde están ubicados?"
-
-¿En qué puedo ayudarte hoy? 🙂
-`;
+        Solo dime qué te gustaría.
+        `;
 
       return {
         type: "text",
         message: formatMessage(welcome),
       };
     }
-
+    
     const intent = detectIntent(text);
 
-    if (text.includes("confirmar") || text.includes("listo") || text.includes("eso es")) {
+    if (
+      text.includes("confirmar") ||
+      text.includes("listo") ||
+      text.includes("eso es")
+    ) {
       const order = getOrder(from);
 
       if (order.items.length === 0) {
