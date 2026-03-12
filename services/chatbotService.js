@@ -40,22 +40,22 @@ async function processMessage(message, config) {
     const history = await getConversation(config.establecimiento_id, from);
     const isFirstMessage = history.length === 0;
 
-    if (isFirstMessage) {
-      const welcome = `
-        👋 ¡Hola! Bienvenido a *${config.restaurante_nombre}*.
+if (isFirstMessage) {
+  const welcome = `
+👋 ¡Hola! Bienvenido a *${config.restaurante_nombre}*.
 
-        ¡Qué bueno tenerte por aquí! 😊  
-        Si te gustaría ver el menú o hacer un pedido, con gusto te ayudo.
+¡Qué bueno tenerte por aquí! 😊  
+Si te gustaría ver el menú o hacer un pedido, con gusto te ayudo.
 
-        Solo dime qué te gustaría.
-        `;
+Solo dime qué te gustaría.
+`;
 
-      return {
-        type: "text",
-        message: formatMessage(welcome),
-      };
-    }
-    
+  return {
+    type: "text",
+    message: formatMessage(welcome),
+  };
+}
+
     const intent = detectIntent(text);
 
     if (
