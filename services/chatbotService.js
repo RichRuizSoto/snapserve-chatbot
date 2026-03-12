@@ -92,6 +92,29 @@ async function processMessage(message, config) {
       };
     }
 
+    const products = await searchProducts(config.establecimiento_id, text);
+
+    console.log("📦 Productos encontrados:", products.length);
+
+    if (products.length > 0) {
+      const product = products[0];
+
+      addItem(from, product);
+
+      const order = getOrder(from);
+
+      return {
+        type: "text",
+        message: formatMessage(`
+Agregué *${product.nombre_producto}* a tu pedido.
+
+Tu carrito ahora tiene ${order.items.length} producto(s).
+
+Escribe *confirmar* para enviar el pedido o agrega otro producto 🙂
+`),
+      };
+    }
+
     const intent = detectIntent(text);
 
     console.log("🧠 Intent detectado:", intent);
@@ -126,9 +149,7 @@ async function processMessage(message, config) {
         message: formatMessage(`
 ⏰ Nuestro horario es:
 
-${config.horario_apertura || "No disponible"} - ${
-          config.horario_cierre || "No disponible"
-        }
+${config.horario_apertura || "No disponible"} - ${config.horario_cierre || "No disponible"}
 
 🙂 Te esperamos
 `),
@@ -152,29 +173,6 @@ ${config.ciudad || ""}
     if (intent === "menu") {
       return {
         type: "pdf",
-      };
-    }
-
-    const products = await searchProducts(config.establecimiento_id, text);
-
-    console.log("📦 Productos encontrados:", products.length);
-
-    if (products.length > 0) {
-      const product = products[0];
-
-      addItem(from, product);
-
-      const order = getOrder(from);
-
-      return {
-        type: "text",
-        message: formatMessage(`
-Agregué *${product.nombre_producto}* a tu pedido.
-
-Tu carrito ahora tiene ${order.items.length} producto(s).
-
-Escribe *confirmar* para enviar el pedido o agrega otro producto 🙂
-`),
       };
     }
 
